@@ -13,6 +13,8 @@ Uso:
 
 import os
 import uuid
+import io
+import tempfile
 import shutil
 from flask import Flask, render_template, request, send_file, redirect, url_for, flash
 
@@ -22,11 +24,8 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "eds-calculadora-secret-key")
 app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
-OUTPUT_FOLDER = os.path.join(BASE_DIR, "outputs")
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+# Almacén en memoria para descarga única de archivos Excel
+_download_store: dict[str, tuple[str, bytes]] = {}
 
 
 # ---------------------------------------------------------------------------
@@ -38,7 +37,7 @@ def index():
 
 
 # ---------------------------------------------------------------------------
-# Procesar archivo
+# Procesar archivo (todo en memoria / tempfiles, sin persistencia)
 # ---------------------------------------------------------------------------
 @app.route("/procesar", methods=["POST"])
 def procesar():
@@ -55,83 +54,69 @@ def procesar():
         flash("El archivo debe ser un Excel (.xlsx o .xls).", "error")
         return redirect(url_for("index"))
 
-    session_id = uuid.uuid4().hex[:12]
-    upload_path = os.path.join(UPLOAD_FOLDER, f"{session_id}_{file.filename}")
-    file.save(upload_path)
-
-    # Recoger overrides del formulario
-    overrides = {}
-    for campo in ("comp_req", "imp_req", "ap_req", "sw24_req"):
-        val = request.form.get(campo, "").strip()
-        if val:
-            try:
-                overrides[campo] = int(val)
-            except ValueError:
-                pass
+    # Guardar archivo subido en un archivo temporal
+    suffix = os.path.splitext(file.filename)[1] or ".xlsx"
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    file.save(tmp.name)
+    upload_path = tmp.name
+    tmp.close()
 
     try:
         actual, requerido, faltantes, excesos, por_servicio, header_rows = \
-            calc.procesar_archivo(upload_path, overrides or None)
+            calc.procesar_archivo(upload_path, overrides=None)
     except Exception as e:
+        os.unlink(upload_path)
         flash(f"Error al procesar el archivo: {e}", "error")
         return redirect(url_for("index"))
 
-    # Generar reporte HTML
-    html_string = calc.generar_html(
+    # Generar reporte HTML en memoria
+    html_content = calc.generar_html(
         upload_path, actual, requerido, faltantes, excesos, por_servicio
     )
 
-    # Guardar el HTML en outputs con nombre único
-    base_name = os.path.splitext(file.filename)[0]
-    html_filename = f"{session_id}_{base_name}_reporte.html"
-    html_path = os.path.join(OUTPUT_FOLDER, html_filename)
-    with open(html_path, "w", encoding="utf-8") as f:
-        f.write(html_string)
-
-    # Generar Excel actualizado (copia + escritura bloque derecho)
-    excel_filename = f"{session_id}_{base_name}_actualizado.xlsx"
-    excel_path = os.path.join(OUTPUT_FOLDER, excel_filename)
-    shutil.copy2(upload_path, excel_path)
+    # Generar Excel actualizado en archivo temporal
+    excel_tmp = upload_path + "_actualizado.xlsx"
+    shutil.copy2(upload_path, excel_tmp)
     calc.actualizar_excel_red(
-        excel_path, por_servicio, header_rows.get("Red", 4)
+        excel_tmp, por_servicio, header_rows.get("Red", 4)
     )
+
+    # Leer Excel a memoria y limpiar archivos temporales
+    with open(excel_tmp, "rb") as f:
+        excel_bytes = f.read()
+    os.unlink(upload_path)
+    os.unlink(excel_tmp)
+
+    # Guardar en memoria para descarga única
+    download_token = uuid.uuid4().hex[:16]
+    base_name = os.path.splitext(file.filename)[0]
+    excel_filename = f"{base_name}_actualizado.xlsx"
+    _download_store[download_token] = (excel_filename, excel_bytes)
 
     # Reporte en consola del servidor
     calc.generar_reporte(actual, requerido, faltantes, excesos, por_servicio)
 
-    return redirect(url_for("reporte", filename=html_filename,
-                            excel_filename=excel_filename))
-
-
-# ---------------------------------------------------------------------------
-# Ver reporte HTML
-# ---------------------------------------------------------------------------
-@app.route("/reporte/<filename>")
-def reporte(filename):
-    excel_filename = request.args.get("excel_filename", "")
-    html_path = os.path.join(OUTPUT_FOLDER, filename)
-    if not os.path.exists(html_path):
-        flash("El reporte ya no está disponible.", "error")
-        return redirect(url_for("index"))
-
-    with open(html_path, "r", encoding="utf-8") as f:
-        html_content = f.read()
-
     return render_template("reporte.html",
                            html_content=html_content,
-                           excel_filename=excel_filename)
+                           download_token=download_token)
 
 
 # ---------------------------------------------------------------------------
-# Descargar Excel actualizado
+# Descargar Excel actualizado (un solo uso, desde memoria)
 # ---------------------------------------------------------------------------
-@app.route("/descargar/<filename>")
-def descargar(filename):
-    path = os.path.join(OUTPUT_FOLDER, filename)
-    if not os.path.exists(path):
+@app.route("/descargar/<token>")
+def descargar(token):
+    entry = _download_store.pop(token, None)
+    if entry is None:
         flash("El archivo ya no está disponible.", "error")
         return redirect(url_for("index"))
-    return send_file(path, as_attachment=True)
+
+    filename, excel_bytes = entry
+    return send_file(
+        io.BytesIO(excel_bytes),
+        as_attachment=True,
+        download_name=filename
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -84,8 +84,8 @@
   <h2>📊 Reporte de Infraestructura EDS</h2>
   <div class="toolbar-actions">
     <a href="javascript:window.print()" class="btn">🖨️ Imprimir</a>
-    {% if excel_filename %}
-    <a href="{{ url_for('descargar', filename=excel_filename) }}" class="btn btn-primary">📥 Descargar Excel actualizado</a>
+    {% if download_token %}
+    <a href="{{ url_for('descargar', token=download_token) }}" class="btn btn-primary">📥 Descargar Excel actualizado</a>
     {% endif %}
     <a href="{{ url_for('index') }}" class="btn">← Nuevo análisis</a>
   </div>

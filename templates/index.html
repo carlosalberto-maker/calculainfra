@@ -113,48 +113,6 @@
     font-weight: 600;
     margin-top: 8px;
   }
-  .advanced-options {
-    margin: 16px 0;
-    text-align: left;
-    background: #f8f9fc;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 8px 16px;
-  }
-  .advanced-options summary {
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 600;
-    color: #555;
-    padding: 4px 0;
-  }
-  .override-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-top: 12px;
-  }
-  .override-grid label {
-    font-size: 12px;
-    color: #666;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .override-grid input {
-    padding: 8px 10px;
-    border: 1px solid #c5cae9;
-    border-radius: 6px;
-    font-size: 13px;
-    width: 100%;
-  }
-  .override-hint {
-    display: block;
-    margin-top: 8px;
-    color: #999;
-    font-size: 11px;
-    font-style: italic;
-  }
 </style>
 </head>
 <body>
@@ -163,7 +121,7 @@
   <h1>Calculadora de Infraestructura EDS</h1>
   <p class="subtitle">IMSS-Bienestar — Sube tu archivo Excel para analizar las necesidades de equipamiento</p>
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
+{% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       {% for category, message in messages %}
         <div class="flash">{{ message }}</div>
@@ -179,26 +137,6 @@
       <input type="file" name="archivo" id="fileInput" accept=".xlsx,.xls">
       <div class="file-name" id="fileName"></div>
     </div>
-
-    <details class="advanced-options">
-      <summary>⚙️ Opciones avanzadas — Sobrescribir totales</summary>
-      <div class="override-grid">
-        <label>Computadoras req.
-          <input type="number" name="comp_req" placeholder="Ej: 128" min="0">
-        </label>
-        <label>Impresoras req.
-          <input type="number" name="imp_req" placeholder="Ej: 13" min="0">
-        </label>
-        <label>Access Points req.
-          <input type="number" name="ap_req" placeholder="Ej: 37" min="0">
-        </label>
-        <label>Switches 24p req.
-          <input type="number" name="sw24_req" placeholder="Ej: 7" min="0">
-        </label>
-      </div>
-      <small class="override-hint">Si se proporcionan, estos valores reemplazan los
-        calculados automáticamente (útiles para inyectar valores del Excel resumen oficial).</small>
-    </details>
 
     <button type="submit" class="btn" id="submitBtn">
       <span id="btnText">Procesar archivo</span>
