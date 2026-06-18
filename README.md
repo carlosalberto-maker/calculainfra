@@ -1,197 +1,182 @@
-# calculainfra
+<div align="center">
 
-Script en Python (`calcular_infraestructura.py`) para calcular automáticamente la infraestructura tecnológica (equipos de cómputo, impresoras, access points y switches) requerida en una unidad médica EDS UM, a partir de una plantilla de Excel que llenas con los datos del hospital.
+# 🖥️ Calculadora de Infraestructura EDS
 
-El script lee el Excel, aplica los **criterios de estimación oficiales** (los que están como imágenes en la pestaña `Criterios_estimación`) y genera un reporte con tres columnas: lo que el hospital tiene **actualmente**, lo que **requiere**, y lo que le **falta**.
+### IMSS-Bienestar — Estimación automática de equipamiento tecnológico para unidades médicas
 
----
+[![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)]()
+[![Flask](https://img.shields.io/badge/Flask-3.x-000000?style=for-the-badge&logo=flask&logoColor=white)]()
+[![Railway](https://img.shields.io/badge/Railway-Deploy-0B0D0E?style=for-the-badge&logo=railway&logoColor=white)]()
+[![License](https://img.shields.io/badge/License-MIT-22ADF6?style=for-the-badge)]()
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-22ADF6?style=for-the-badge)]()
 
-## Cómo ejecutarlo paso a paso
+<br>
 
-> **Requisitos previos** (ya instalados en este equipo): Python 3.13 y las dependencias `pandas` + `openpyxl`. Si vas a usar otro equipo, ve al final del README (sección [Instalación en un equipo nuevo](#instalación-en-un-equipo-nuevo)).
+<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=22&duration=3000&pause=500&color=1A237E&center=true&vCenter=true&width=600&lines=Sube+tu+Excel+y+obt%C3%A9n+el+reporte+autom%C3%A1tico;Computadoras+%7C+Impresoras+%7C+APs+%7C+Switches;Actual+vs+Requerido+vs+Faltante;+%C2%A1Listo+para+requisitar!" alt="Typing SVG" />
 
-### Paso 1 — Copia la plantilla y dale el nombre del hospital
-
-Tienes el archivo base `Información implementación EDS UM.xlsx`. Para **cada hospital** haz una copia y nómbrala con un nombre claro, por ejemplo:
-
-- `Hospital_Gomez_Palacio.xlsx`
-- `Hospital_Torreon_Centro.xlsx`
-- `Hospital_Saltillo.xlsx`
-
-### Paso 2 — Llena el Excel del hospital
-
-Llena **únicamente la columna "Cantidad (número de)"** y las columnas de "actual" en las tres pestañas relevantes:
-
-#### Pestaña `Servicios`
-Por cada fila (Consultorios de triage, Camas de observación, etc.), llena:
-- **Cantidad (número de)** → cuántas unidades hay de esa área (consultorios, camas, salas, módulos…). Si no aplica, déjala vacía o pon `0`.
-- **Número de equipos de cómputo (actual)** → cuántas computadoras ya hay instaladas en esa área.
-- **Número de impresoras** → cuántas impresoras ya hay.
-- (Opcional) Piso, especialidad, horario, propietario, observaciones.
-
-> **Importante:** las filas que empiezan con "Áreas de…" son agrupadores y **no se cuentan** (las camas se cuentan en la fila "Camas de observación", no en "Áreas de observación").
-
-#### Pestaña `Personal (cuerpo de gobierno)`
-Por cada perfil/turno:
-- **Cantidad de personal** → cuántas personas hay en ese turno (`0` si no hay).
-- **# equipos cómputo por perfil** → cuántas computadoras tiene ese perfil actualmente.
-- **# impresoras por perfil** → cuántas impresoras.
-
-#### Pestaña `Red`
-La hoja `Red` tiene **dos bloques** de columnas con los mismos encabezados:
-
-| Columna | Bloque | Significado |
-|---|---|---|
-| B – Acces Point | **Izquierdo (ACTUAL)** | Cuántos APs hay instalados hoy en ese servicio |
-| C – Switch (24 Puertos) | **Izquierdo (ACTUAL)** | Cuántos switches de 24 puertos hay hoy |
-| D – Observaciones | **Izquierdo (ACTUAL)** | Tus notas del levantamiento |
-| E – Acces Point | **Derecho (FALTANTE)** | Lo que falta de APs *(lo calcula el script)* |
-| F – Switch (24 Puertos) | **Derecho (FALTANTE)** | Lo que falta de switches *(lo calcula el script)* |
-| G – Observaciones | **Derecho (FALTANTE)** | Comentario del análisis *(lo escribe el script)* |
-
-**Tú sólo debes llenar el bloque izquierdo (B, C, D)** con los valores actuales del hospital. El bloque derecho (E, F, G) lo deja en blanco — el script lo llenará por ti si usas el flag `--actualizar-excel` (ver paso 4).
-
-### Paso 3 — Abre una terminal en la carpeta del script
-
-En el Explorador de Windows, navega a `c:\Users\ECONAS12\Documents\Dev\calculainfra`, haz clic derecho dentro de la carpeta y elige **"Abrir en Terminal"** (o "Abrir PowerShell aquí").
-
-### Paso 4 — Ejecuta el script
-
-> **Por defecto el script NO modifica tu Excel**: sólo lo lee e imprime el reporte en la terminal.
-
-Pásale el nombre del Excel del hospital con `--archivo`:
-
-```powershell
-python calcular_infraestructura.py --archivo "Hospital_Gomez_Palacio.xlsx"
-```
-
-Si el archivo se llama exactamente `Información implementación EDS UM.xlsx` (el nombre por defecto), puedes omitir el parámetro:
-
-```powershell
-python calcular_infraestructura.py
-```
-
-**(Opcional, no recomendado salvo que lo quieras explícitamente)** Con el flag `--actualizar-excel` el script escribirá los faltantes de AP y Switch en el bloque derecho de la hoja `Red` del Excel:
-
-```powershell
-python calcular_infraestructura.py --archivo "Hospital_Gomez_Palacio.xlsx" --actualizar-excel
-```
-
-### Paso 5 — Lee el reporte
-
-El script imprime en la terminal dos tablas:
-
-**1. Tabla global** — el total para todo el hospital:
-
-```
-======================================================================
-REPORTE DE ESTIMACIÓN DE INFRAESTRUCTURA (EDS UM) — GLOBAL
-======================================================================
-Equipo             |   Actual |  Requerido |  Faltante
-----------------------------------------------------------------------
-Computadoras       |        6 |         13 |         7
-Impresoras         |        2 |          3 |         1
-Access Point       |        3 |          2 |         0
-Switch             |        1 |          2 |         1
-======================================================================
-```
-
-**2. Desglose por servicio** — lo mismo pero separado por servicio, que es lo que pide la segunda mitad de la hoja `Red`:
-
-```
-DESGLOSE POR SERVICIO
-(A=Actual  R=Requerido  F=Faltante)
------------------------------------------------------------------------------------------------------
-Servicio                            |  Computadoras  |  Impresoras  |  Access Point  |     Switch
-                                    |    A    R    F |   A   R   F |    A    R    F |    A    R    F
------------------------------------------------------------------------------------------------------
-Urgencias                           |    5   11    6 |   1   2   1 |    2    1    0 |    1    1    0
-Hospitalización (incluye terapi...) |    0    0    0 |   0   0   0 |    1    0    0 |    0    0    0
-Áreas de estancia corta (Hemodiá... |    0    0    0 |   0   0   0 |    0    0    0 |    0    0    0
-Quirófano                           |    0    0    0 |   0   0   0 |    0    0    0 |    0    0    0
-Tococirugía                         |    0    0    0 |   0   0   0 |    0    0    0 |    0    0    0
-Consulta externa                    |    0    0    0 |   0   0   0 |    0    0    0 |    0    0    0
-Cuerpo de gobierno                  |    1    2    1 |   1   1   0 |    0    1    1 |    0    1    1
------------------------------------------------------------------------------------------------------
-```
-
-La columna **F (Faltante)** de cada bloque es exactamente lo que tienes que requisitar.
-
-### Paso 6 — Guarda el reporte (opcional)
-
-Si quieres guardar el reporte en un archivo de texto, redirige la salida:
-
-```powershell
-python calcular_infraestructura.py --archivo "Hospital_Gomez_Palacio.xlsx" > "Reporte_Gomez_Palacio.txt"
-```
+</div>
 
 ---
 
-## Criterios de estimación implementados
+## 📋 ¿Qué hace esta herramienta?
 
-Los criterios están codificados en el script (sección `calcular_computadoras_area`) porque en la plantilla están como imágenes. Se aplican exactamente como en `Criterios_estimación`:
+Toma el Excel con los datos de tu hospital y **calcula automáticamente** cuánto equipo de cómputo, impresoras, access points y switches se necesitan, aplicando los criterios oficiales del IMSS-Bienestar.
 
-| Servicio | Área | Criterio |
-|---|---|---|
-| Urgencias / Admisión continua | Módulo de admisión | 1 x módulo |
-| Urgencias | Módulo de TRIAGE | 1 x módulo |
-| Urgencias | Consultorios de primer contacto | 1 x consultorio |
-| Urgencias | Camas reanimación / corta estancia / observación / tococirugía / choque | 1 x 5 camas |
-| Urgencias | Central de enfermería | 1 x central |
-| Urgencias | Jefatura de servicio / enfermería | 1 |
-| Hospitalización | Camas hospitalización | 1 x 5 camas |
-| Hospitalización | Cunero patológico | 1 x 5 cunas |
-| Hospitalización | Camas UCIA, UCIP, UCIN | 1 x 5 camas |
-| Hospitalización | Camas cirugía ambulatoria | 1 x 5 camas |
-| Hospitalización | Recuperación post parto / post quirúrgico | 1 x 5 camas |
-| Hospitalización | Central de enfermería | 1 x central |
-| Hospitalización | Jefatura de servicio / enfermería | 1 |
-| Quirófano | Quirófanos urgencias / centrales | 1 x 2 salas |
-| Quirófano | Central de enfermería | 1 x central |
-| Quirófano | Jefatura de servicio / enfermería | 1 |
-| Consulta externa | Consultorios | 1 x consultorio |
-| Consulta externa | Auxiliar administrativo | 1 x 2 salas |
-| SAI Farmacia | Farmacia hospitalaria | 1 x área |
-| SAI Farmacia | Farmacia de consulta externa | 1 x ventanilla |
-| Cuerpo de gobierno | Dirección | 1 |
-| Cuerpo de gobierno | Subdirección Médica | 1 |
-| Cuerpo de gobierno | Asistente de dirección / coordinador de turno | 1 |
-| Cuerpo de gobierno | Jefatura de enfermería | 1 |
-| Impresoras (todos) | — | 1 x cada 10 equipos de cómputo |
+<table>
+<tr>
+<td align="center">📤</td>
+<td align="center">⚙️</td>
+<td align="center">📊</td>
+<td align="center">📥</td>
+</tr>
+<tr>
+<td align="center"><b>Subes tu Excel</b><br><small>con los datos del hospital</small></td>
+<td align="center"><b>Procesamos</b><br><small>aplicando criterios oficiales</small></td>
+<td align="center"><b>Generamos reporte</b><br><small>HTML + Excel actualizado</small></td>
+<td align="center"><b>Descargas</b><br><small>los resultados</small></td>
+</tr>
+</table>
 
-### Criterios de red (estimación complementaria)
+<br>
 
-La plantilla **no incluye criterios oficiales** para Access Points ni Switches. El script usa los siguientes valores por defecto, configurables en la parte superior de `calcular_infraestructura.py`:
+## 🚀 Usar la app web (recomendado)
 
-- **Access Points:** 1 por cada `COMPUTADORAS_POR_AP = 25` equipos de cómputo requeridos.
-- **Switches (24 puertos):** 1 por cada `PUERTOS_POR_SWITCH - PUERTOS_DE_RESERVA = 22` nodos (computadoras + impresoras + APs), reservando 2 puertos por switch para uplink.
+La forma más sencilla. Solo abre el navegador:
 
-Si tienes un criterio oficial distinto, modifica esas tres constantes al inicio del script.
+```
+https://calculainfra.up.railway.app
+```
 
----
+1. **Sube** tu archivo Excel
+2. **Presiona** "Procesar archivo"
+3. **Revisa** el reporte visual
+4. **Descarga** el Excel actualizado
 
-## Instalación en un equipo nuevo
+> ⚡ Todo se procesa en memoria — **no se guarda ningún archivo** en el servidor.
 
-Si vas a usar el script en otra computadora:
+<br>
 
-```powershell
-# 1. Instala Python 3 (en Windows con winget):
-winget install --id Python.Python.3.13 --scope user
+## 🐍 Usar desde la terminal
 
-# 2. (Abre una nueva terminal para que reconozca python.) Luego instala las librerías:
+```bash
 pip install -r requirements.txt
-
-# 3. Ejecuta como en el paso 4 de arriba.
+python calcular_infraestructura.py --archivo "mi_hospital.xlsx"
 ```
 
-Las dependencias necesarias están en `requirements.txt`: `pandas` y `openpyxl`.
+Opciones disponibles:
+
+| Flag | Descripción |
+|---|---|
+| `--archivo "archivo.xlsx"` | Ruta al Excel (default: `Información implementación EDS UM.xlsx`) |
+| `--actualizar-excel` | Escribe los faltantes en la hoja Red |
+| `--generar-html` | Genera un reporte visual HTML |
+| `--comp-req N` | Sobrescribe total de computadoras requeridas |
+| `--imp-req N` | Sobrescribe total de impresoras requeridas |
+| `--ap-req N` | Sobrescribe total de access points requeridos |
+| `--sw24-req N` | Sobrescribe total de switches requeridos |
+
+<br>
+
+## 🏗️ Estructura del proyecto
+
+```
+calculainfra/
+├── app.py                          # Aplicación web Flask
+├── calcular_infraestructura.py     # Motor de cálculo
+├── requirements.txt                # Dependencias
+├── Procfile                        # Configuración de deploy
+├── .gitignore
+├── templates/
+│   ├── index.html                  # Formulario de carga
+│   └── reporte.html                # Vista del reporte
+└── README.md
+```
+
+<br>
+
+## 📐 Criterios de estimación
+
+### Equipos de cómputo (criterios oficiales IMSS-Bienestar)
+
+| Servicio | Área | Fórmula |
+|---|---|---|
+| **Urgencias** | Admisión / Triage | 1 por módulo |
+| | Consultorios | 1 por consultorio |
+| | Camas | 1 cada 5 camas |
+| | Central de enfermería | 1 por central |
+| **Hospitalización** | Camas (incluye UCIA, UCIP, UCIN) | 1 cada 5 camas |
+| | Central de enfermería | 1 por central |
+| | Farmacia hospitalaria | 1 por área |
+| **Quirófano** | Salas | 1 cada 2 salas |
+| **Tococirugía** | Salas de expulsión | 1 cada 2 salas |
+| | Camas labor/recuperación | 1 cada 5 camas |
+| **Consulta externa** | Consultorios | 1 por consultorio |
+| | Especialidades | 1 por consultorio |
+| **Cuerpo de gobierno** | Dirección, jefaturas, etc. | 1 por perfil con personal |
+
+### Red (criterios técnicos)
+
+| Equipo | Criterio |
+|---|---|
+| 🖨️ **Impresoras** | 1 cada 10 equipos de cómputo |
+| 📡 **Access Point** | 1 cada 25 dispositivos |
+| 🔌 **Switch 24p** | 1 cada 22 nodos (24 puertos - 2 uplink) |
+
+<br>
+
+## ⚙️ ¿Cómo funciona internamente?
+
+```mermaid
+flowchart LR
+    A[Excel del hospital] --> B[Leer Servicios]
+    A --> C[Leer Personal]
+    A --> D[Leer Red]
+    B --> E[Aplicar criterios<br>de estimación]
+    C --> E
+    E --> F[Calcular requeridos<br>vs actuales]
+    D --> F
+    F --> G[Generar reporte<br>HTML + Excel]
+```
+
+1. **Lee** las pestañas `Servicios`, `Personal` y `Red` del Excel
+2. **Aplica** las reglas de estimación (equipos por cama, consultorio, etc.)
+3. **Compara** lo requerido contra lo que ya existe
+4. **Calcula** APs y Switches según dispositivos totales
+5. **Genera** un reporte HTML interactivo y un Excel actualizado
+
+<br>
+
+## 🛠️ Tecnologías
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white" />
+  <img src="https://img.shields.io/badge/Pandas-150458?style=for-the-badge&logo=pandas&logoColor=white" />
+  <img src="https://img.shields.io/badge/OpenPyXL-217346?style=for-the-badge&logo=microsoft-excel&logoColor=white" />
+  <img src="https://img.shields.io/badge/Gunicorn-499848?style=for-the-badge&logo=gunicorn&logoColor=white" />
+  <img src="https://img.shields.io/badge/Railway-0B0D0E?style=for-the-badge&logo=railway&logoColor=white" />
+</p>
+
+<br>
+
+## 🤝 Contribuir
+
+¿Quieres aportar? ¡Genial!
+
+1. Haz un fork del proyecto
+2. Crea una rama: `git checkout -b feature/mi-idea`
+3. Haz tus cambios: `git commit -m "Agrego X"`
+4. Sube la rama: `git push origin feature/mi-idea`
+5. Abre un Pull Request a la rama `develop`
+
+<br>
 
 ---
 
-## ¿Qué resuelve el script?
-
-1. **Evita cálculos manuales propensos a error:** lee las tablas del Excel (manejando filas en blanco y celdas combinadas) e interpreta cantidades.
-2. **Aplica los criterios oficiales:** traduce reglas como "1 equipo por cada 5 camas de observación" o "1 impresora por cada 10 computadoras" en estimaciones precisas de hardware.
-3. **Cálculo de red:** con base en el total de computadoras requeridas, estima preliminarmente la cantidad de APs y switches de 24 puertos.
-4. **Reporte diferencial:** muestra `Actual | Requerido | Faltante` por cada rubro (Computadoras, Impresoras, APs, Switches), listo para levantar requisiciones.
-5. **Desglose por área:** lista cuántos equipos generó cada fila del Excel para que puedas auditar el resultado.
+<div align="center">
+  <sub>Hecho con ❤️ para el IMSS-Bienestar · EDS · Expediente Digital de Salud</sub>
+  <br>
+  <sub>¿Preguntas? Abre un <a href="https://github.com/carlosalberto-maker/calculainfra/issues">issue</a></sub>
+  <br><br>
+  <img src="https://api.visitor-badge.laobi.icu/badge?page_id=carlosalberto-maker.calculainfra" alt="visitors">
+</div>
