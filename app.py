@@ -19,7 +19,8 @@ from flask import Flask, render_template, request, send_file, redirect, url_for,
 import calcular_infraestructura as calc
 
 app = Flask(__name__)
-app.secret_key = "eds-calculadora-secret-key"
+app.secret_key = os.environ.get("SECRET_KEY", "eds-calculadora-secret-key")
+app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
@@ -137,9 +138,11 @@ def descargar(filename):
 # Punto de entrada
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
     print("=" * 60)
     print("  Calculadora de Infraestructura EDS — Servidor Web")
     print("=" * 60)
-    print(f"  Abre http://localhost:5000 en tu navegador")
+    print(f"  Abre http://localhost:{port} en tu navegador")
     print("=" * 60)
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=debug, host="0.0.0.0", port=port)
